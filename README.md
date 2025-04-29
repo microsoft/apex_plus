@@ -237,7 +237,8 @@ The APEX output will include a SLO Metrics based off the candidate plan.
 -----------------------------------------
 ```
 ## Our paper
-The paper of this work can be access [here](https://arxiv.org/abs/2411.17651).
+The paper of this work can be accessed [here](https://arxiv.org/abs/2411.17651).  
+DOI: 10.5281/zenodo.15300595
 ```
 @misc{apex,
       title={Toward High-Performance LLM Serving: A Simulation-Based Approach for Identifying Optimal Parallelism}, 
