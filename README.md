@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15300595.svg)](https://doi.org/10.5281/zenodo.15300595)
+
 # APEX+
 
 APEX+ is an extensible and dynamism-aware simulator for **A**utomated **P**arallel **EX**ecution in LLM serving.
