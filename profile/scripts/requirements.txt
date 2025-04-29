@@ -1,0 +1,8 @@
+pandas
+numpy
+ray
+torch
+cupy-cuda12x
+xformers
+pyJoules[nvidia]
+pynvml

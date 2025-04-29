@@ -1,0 +1,19 @@
+hf_token=""
+/bin/bash 8TP.sh meta-llama/Meta-Llama-3.1-70B llama lmsys_05 $hf_token
+/bin/bash 2DP4TP.sh meta-llama/Meta-Llama-3.1-70B llama lmsys_05 $hf_token
+/bin/bash 4DP2TP.sh meta-llama/Meta-Llama-3.1-70B llama lmsys_05 $hf_token
+/bin/bash 8TP.sh meta-llama/Meta-Llama-3.1-70B llama lmsys_025 $hf_token
+/bin/bash 2DP4TP.sh meta-llama/Meta-Llama-3.1-70B llama lmsys_025 $hf_token
+/bin/bash 4DP2TP.sh meta-llama/Meta-Llama-3.1-70B llama lmsys_025 $hf_token
+/bin/bash 8TP.sh meta-llama/Meta-Llama-3.1-70B llama summarization_05 $hf_token
+/bin/bash 2DP4TP.sh meta-llama/Meta-Llama-3.1-70B llama summarization_05 $hf_token
+/bin/bash 4DP2TP.sh meta-llama/Meta-Llama-3.1-70B llama summarization_05 $hf_token
+/bin/bash 8TP.sh meta-llama/Meta-Llama-3.1-70B llama summarization_025 $hf_token
+/bin/bash 2DP4TP.sh meta-llama/Meta-Llama-3.1-70B llama summarization_025 $hf_token
+/bin/bash 4DP2TP.sh meta-llama/Meta-Llama-3.1-70B llama summarization_025 $hf_token
+/bin/bash 8TP.sh meta-llama/Meta-Llama-3.1-70B llama creation_05 $hf_token
+/bin/bash 2DP4TP.sh meta-llama/Llama-3.1-70B-Instruct llama creation_05 $hf_token
+/bin/bash 4DP2TP.sh meta-llama/Llama-3.1-70B-Instruct llama creation_05 $hf_token
+/bin/bash 8TP.sh meta-llama/Llama-3.1-70B-Instruct llama creation_025 $hf_token
+/bin/bash 2DP4TP.sh meta-llama/Llama-3.1-70B-Instruct llama creation_025 $hf_token
+/bin/bash 4DP2TP.sh meta-llama/Llama-3.1-70B-Instruct llama creation_025 $hf_token

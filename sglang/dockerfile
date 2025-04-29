@@ -1,0 +1,24 @@
+FROM nvidia/cuda:12.4.0-runtime-ubuntu22.04
+
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    wget \
+    git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+
+
+RUN pip install --upgrade pip
+RUN pip install uv
+RUN uv pip install --system "sglang[all]>=0.4.4.post2" --find-links https://flashinfer.ai/whl/cu124/torch2.5/flashinfer-python
+RUN uv pip install --system torchvision
+RUN uv pip install --system compressed-tensors
+RUN uv pip install --system gguf
+RUN uv pip install --system partial-json-parser
+RUN uv pip install --system einops
+RUN uv pip install --system pynvml
+RUN uv pip install --system protobuf
+
+# CMD ["python3", "-m", "sglang.launch_server", "--model-path", "microsoft/Phi-3-mini-128k-instruct", "--host", "0.0.0.0", "--disable-cuda-graph"]
