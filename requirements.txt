@@ -1,4 +1,4 @@
-transformers==4.48.0
+transformers
 pandas
 tqdm
 numpy
@@ -6,6 +6,6 @@ prettytable
 ray
 jupyterlab
 notebook
-torch==2.7.0
+torch
 ipywidgets
 pyarrow
