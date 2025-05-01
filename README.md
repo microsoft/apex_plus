@@ -243,7 +243,7 @@ The paper of this work can be accessed [here](https://arxiv.org/abs/2411.17651).
 DOI: 10.5281/zenodo.15300595
 ```
 @misc{apex,
-      title={Toward High-Performance LLM Serving: A Simulation-Based Approach for Identifying Optimal Parallelism}, 
+      title={APEX: An Extensible and Dynamism-Aware Simulator for Automated Parallel Execution in LLM Serving}, 
       author={Yi-Chien Lin and Woosuk Kwon and Ronald Pineda and Fanny Nina Paravecino},
       year={2024},
       eprint={2411.17651},
