@@ -17,8 +17,8 @@ KB = 1 << 10
 MB = 1 << 20
 GB = 1 << 30
 
-gpu = "V100-PCIE-16GB"
-data_type = cp.float32
+gpu = "A100-SXM-80GB"
+data_type = cp.float16
 
 _NCCL_DT = {  # convert data type to NCCL format to run experiments
     cp.float16: nccl.NCCL_FLOAT16,
@@ -376,6 +376,7 @@ class GpuHost:
             )
 
     def profile(self):
+        data_type = cp.float16
         header = [
             "gpu",
             "num_nodes",
@@ -388,25 +389,26 @@ class GpuHost:
         ]
         gpu_frequencies = [800, 1200, 1600, 1980]
 
-        # All-reduce
-        file_path = "all_reduce.csv"
-        with open(file_path, "w", encoding="UTF8") as f:
-            writer = csv.writer(f)
-            writer.writerow(header)
-        for freq in gpu_frequencies:
-            nvmlDeviceSetGpuLockedClocks(self.handle, freq, freq)
-            time.sleep(2)
-            for i in range(8, 27):
-                for k in [1, 2, 4]:
-                    self.profile_allreduce(
-                        1 << i,
-                        data_type,
-                        [list(range(0, self.world_size, k))],
-                        freq,
-                        file_path,
-                    )
+        # # All-reduce
+        # file_path = "all_reduce.csv"
+        # with open(file_path, "w", encoding="UTF8") as f:
+        #     writer = csv.writer(f)
+        #     writer.writerow(header)
+        # # for freq in gpu_frequencies:
+        # #     nvmlDeviceSetGpuLockedClocks(self.handle, freq, freq)
+        # #     time.sleep(2)
+        # freq = 0
+        # for i in range(8, 27):
+        #     for k in [1, 2, 4]:
+        #         self.profile_allreduce(
+        #             1 << i,
+        #             data_type,
+        #             [list(range(0, self.world_size, k))],
+        #             freq,
+        #             file_path,
+        #         )
 
-        # All-gather
+        # # All-gather
         # file_path = "all_gather.csv"
         # with open(file_path, 'w', encoding='UTF8') as f:
         #     writer = csv.writer(f)
@@ -433,26 +435,26 @@ class GpuHost:
         #     for k in [1, 2, 4]:
         #         self.profile_reduce_scatter(1 << i, data_type, [list(range(0, self.world_size, k))], file_path)
 
-        # # Single Send-recv
-        # file_path = "sendrecv.csv"
-        # with open(file_path, 'w', encoding='UTF8') as f:
-        #     writer = csv.writer(f)
-        #     writer.writerow(header)
-        # for i in range(8, 27):
-        #     self.profile_send_recv(1 << i, data_type, 0, self.world_size - 1,file_path)
-        # return
-        # # multiple p2p Send-recv
-        # # for i in range(29, 30):
-        # #     self.profile_multi_send_recv(1 << i, cp.float32, [[0, 1], [2, 3]])
-        # #     self.profile_multi_send_recv(1 << i, cp.float32, [[0, self.world_size - 4], [1, self.world_size - 3]])
-        # #     self.profile_multi_send_recv(1 << i, cp.float32, [[0, self.world_size - 2], [1, self.world_size - 1]])
-        # #     self.profile_multi_send_recv(1 << i, cp.float32, [[0, self.world_size - 4], [1, self.world_size - 3], [2, self.world_size - 2], [3, self.world_size - 1]])
-        # #     self.profile_multi_send_recv(1 << i, cp.float32, [[0, self.world_size - 8], [1, self.world_size - 7], [2, self.world_size - 6], [3, self.world_size - 5]])
-        # #     self.profile_multi_send_recv(1 << i, cp.float32, [[0, self.world_size - 8], [1, self.world_size - 7], [2, self.world_size - 6], [3, self.world_size - 5],
-        # #                                                       [4, self.world_size - 4], [5, self.world_size - 3], [6, self.world_size - 2], [7, self.world_size - 1]])
+        # Single Send-recv
+        file_path = "sendrecv.csv"
+        with open(file_path, 'w', encoding='UTF8') as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
+        for i in range(8, 27):
+            self.profile_send_recv(1 << i, data_type, 0, self.world_size - 1,file_path)
 
-        for handle in handles:
-            nvmlDeviceResetGpuLockedClocks(handle)
+        # multiple p2p Send-recv
+        # for i in range(29, 30):
+        #     self.profile_multi_send_recv(1 << i, cp.float32, [[0, 1], [2, 3]])
+        #     self.profile_multi_send_recv(1 << i, cp.float32, [[0, self.world_size - 4], [1, self.world_size - 3]])
+        #     self.profile_multi_send_recv(1 << i, cp.float32, [[0, self.world_size - 2], [1, self.world_size - 1]])
+        #     self.profile_multi_send_recv(1 << i, cp.float32, [[0, self.world_size - 4], [1, self.world_size - 3], [2, self.world_size - 2], [3, self.world_size - 1]])
+        #     self.profile_multi_send_recv(1 << i, cp.float32, [[0, self.world_size - 8], [1, self.world_size - 7], [2, self.world_size - 6], [3, self.world_size - 5]])
+        #     self.profile_multi_send_recv(1 << i, cp.float32, [[0, self.world_size - 8], [1, self.world_size - 7], [2, self.world_size - 6], [3, self.world_size - 5],
+        #                                                       [4, self.world_size - 4], [5, self.world_size - 3], [6, self.world_size - 2], [7, self.world_size - 1]])
+
+        # for handle in handles:
+        #     nvmlDeviceResetGpuLockedClocks(handle)
 
         nvmlShutdown()
 
@@ -472,7 +474,7 @@ if __name__ == "__main__":
         "--debug", action="store_true", help="Print nccl debug information"
     )
     parser.add_argument(
-        "--gpu", type=str, required=True, choices=["V100-PCIE-16GB", "H100-SXM-80GB"]
+        "--gpu", type=str, required=True, choices=["V100-PCIE-16GB", "H100-SXM-80GB", "A100-SXM-80GB"]
     )
     parser.add_argument("--dtype", type=str, default="half", choices=["half", "float"])
     args = parser.parse_args()
@@ -480,7 +482,8 @@ if __name__ == "__main__":
     gpu = args.gpu
     data_type = cp.float32 if args.dtype == "float" else cp.half
 
-    ray.init(address="auto")
+    # ray.init(address="auto")
+    ray.init()
     num_gpus = int(ray.cluster_resources()["GPU"])
 
     nccl_uuid_list = [cp.cuda.nccl.get_unique_id() for _ in range(500)]

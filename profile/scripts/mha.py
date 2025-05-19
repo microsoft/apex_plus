@@ -16,7 +16,7 @@ import time
 
 NUM_WARMUP = 5
 
-H: Number of attention heads up to 128.
+# H: Number of attention heads up to 128.
 H = [1, 2, 4, 8, 16, 24, 32, 40, 48, 52, 64, 96, 128]
 # D: Head dimension.
 D = [64, 80, 96, 128, 112, 256]
