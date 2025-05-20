@@ -6,10 +6,8 @@ import pandas as pd
 import ray
 import torch
 
-import pynvml
 import subprocess
 import os
-import signal
 import threading
 import queue
 
@@ -18,9 +16,9 @@ NUM_WARMUP = 5
 NUM_ITER = 100
 
 # M: Hidden/intermediate dimension up to 64K.
-M = [1 << i for i in range(17)]
+M = [1 << i for i in range(14 + 1)]
 # K: Hidden/intermediate dimension up to 64K.
-K = [1 << i for i in range(17)]
+K = [1 << i for i in range(14 + 1)]
 # N: Number of tokens up to 64K
 N = list(range(1, 128)) + [128 * i for i in range(1, 513)]
 
@@ -31,9 +29,13 @@ class GemmProfiler:
     def __init__(self, idx: int, num_gpus: int):
         self.idx = idx
         self.num_gpus = num_gpus
+        self.data = []
+        runtime_context = ray.get_runtime_context()
+        self.worker_id = runtime_context.get_worker_id()
+        print(f"Worker ID: {self.worker_id}")
 
-        pynvml.nvmlInit()
-        self.handle = pynvml.nvmlDeviceGetHandleByIndex(idx)
+    def get_data(self):
+        return self.data
 
     def _profile(self, m: int, k: int, n: int, dtype: str) -> Tuple[float, float]:
         if dtype == "half":
@@ -47,7 +49,7 @@ class GemmProfiler:
         y = torch.randn(k, n, device="cuda", dtype=dtype)
 
         tag = f"m{m}_k{k}_n{n}"
-        power_log_file = f"power_log_{self.idx}.csv"
+        power_log_file = f"power_log_{self.worker_id}.csv"
         stop_event, thread = self._start_power_logging(power_log_file, tag)
 
         # Warmup
@@ -69,48 +71,6 @@ class GemmProfiler:
         avg_power = self._get_avg_power(power_log_file, tag)
         avg_time = (end - start) / NUM_ITER
         return avg_time * 1000 * 1000, avg_power
-
-    def _get_gpu_freq_pairs(self):
-        max_pairs = []
-        memory_clocks = pynvml.nvmlDeviceGetSupportedMemoryClocks(self.handle)
-        try:
-            for mem_clk in memory_clocks:
-                graphics_clks = pynvml.nvmlDeviceGetSupportedGraphicsClocks(
-                    self.handle, mem_clk
-                )
-                if graphics_clks:
-                    max_graphics_clk = max(graphics_clks)
-                    max_pairs.append((mem_clk, max_graphics_clk))
-        except:
-            print(f"Error when getting valid freq pairs")
-            exit(1)
-        return [(2619, 1980), (2619, 810), (1593, 810)]
-
-    def _set_gpu_freq(self, mem_clk, graph_clk):
-        try:
-            result = subprocess.run(
-                ["nvidia-smi", "-ac", f"{mem_clk},{graph_clk}"],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            print(result.stdout.strip())
-        except subprocess.CalledProcessError as e:
-            print(f"Exit code: {e.returncode}")
-            print(f"Stderr: {e.stderr.strip()}")
-            exit(1)
-
-    def _reset_gpu_freq(self):
-        try:
-            result = subprocess.run(
-                ["nvidia-smi", "-rac"], check=True, capture_output=True, text=True
-            )
-            print("Clocks reset to default")
-            print(result.stdout.strip())
-        except subprocess.CalledProcessError as e:
-            print("Failed to reset clocks")
-            print("Exit code:", e.returncode)
-            print("Error:", e.stderr.strip())
 
     def _start_power_logging(self, log_file: str, tag: str, interval_ms: int = 50):
         stop_event = threading.Event()
@@ -161,43 +121,44 @@ class GemmProfiler:
         dtype: str,
     ) -> pd.DataFrame:
         data: List[Tuple[str, str, int, int, int, int]] = []
-        freq_pairs = self._get_gpu_freq_pairs()
-        for mem_clk, graph_clk in freq_pairs[1:]:
-            print(f"Changing frequency to {mem_clk},{graph_clk} ")
-
-            try:
-                self._set_gpu_freq(mem_clk, graph_clk)
-                for mi, m in enumerate(M):
-                    for ki, k in enumerate(K):
-                        for ni, n in enumerate(N):
-                            i = mi * len(K) * len(N) + ki * len(N) + ni
-                            if i % self.num_gpus != self.idx:
-                                continue
-                            t = self._profile(m, k, n, dtype)
-                            t, avg_power = self._profile(m, k, n, dtype)
-                            avg_energy = int(t) * avg_power
-                            data.append(
-                                (
-                                    gpu,
-                                    dtype,
-                                    m,
-                                    k,
-                                    n,
-                                    int(t),
-                                    mem_clk,
-                                    graph_clk,
-                                    avg_power,
-                                    avg_energy,
-                                )
-                            )
-                        print(f"Finished profiling m={m}, k={k}")
-            except Exception as e:
-                print(
-                    f"Error when profiling at frequency of {mem_clk}, {graph_clk}: {e}"
+        for mi, m in enumerate(M):
+            for ki, k in enumerate(K):
+                for ni, n in enumerate(N):
+                    i = mi * len(K) * len(N) + ki * len(N) + ni
+                    if i % self.num_gpus != self.idx:
+                        continue
+                    t, avg_power = self._profile(m, k, n, dtype)
+                    avg_energy = int(t) * avg_power
+                    item = (
+                        gpu,
+                        dtype,
+                        m,
+                        k,
+                        n,
+                        int(t),
+                        avg_power,
+                        avg_energy,
+                    )
+                    data.append(item)
+                    self.data.append(item)
+                print(f"Finished profiling m={m}, k={k}")
+                # dump data to csv
+                df = pd.DataFrame(
+                    data,
+                    columns=[
+                        "gpu",
+                        "dtype",
+                        "m",
+                        "k",
+                        "n",
+                        "time(us)",
+                        "avg_power(W)",
+                        "avg_energy(uJ)",
+                    ],
                 )
-                continue
-        self._reset_gpu_freq()
-        pynvml.nvmlShutdown()
+                df.to_csv(f"gemm.tmp.{self.worker_id}.csv", index=False, mode='w')
+                
+
         df = pd.DataFrame(
             data,
             columns=[
@@ -207,8 +168,6 @@ class GemmProfiler:
                 "k",
                 "n",
                 "time(us)",
-                "mem_clk_freq",
-                "graph_clk_freq",
                 "avg_power(W)",
                 "avg_energy(uJ)",
             ],
@@ -230,7 +189,7 @@ def main(gpu: str, num_gpus: int, dtype: str):
     profiled_data = ray.get(profiled_data)
     df = pd.concat(profiled_data, ignore_index=True)
     df = df.sort_values(
-        by=["gpu", "dtype", "m", "k", "n", "mem_clk_freq", "graph_clk_freq"]
+        by=["gpu", "dtype", "m", "k", "n"]
     )
     df.to_csv("gemm.csv", index=False)
 
@@ -238,7 +197,7 @@ def main(gpu: str, num_gpus: int, dtype: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--gpu", type=str, required=True, choices=["V100-PCIE-16GB", "H100-SXM-80GB"]
+        "--gpu", type=str, required=True, choices=["V100-PCIE-16GB", "H100-SXM-80GB", "A100-SXM-80GB"]
     )
     parser.add_argument("--num-gpus", type=int, required=True)
     parser.add_argument("--dtype", type=str, default="half", choices=["half", "float"])
