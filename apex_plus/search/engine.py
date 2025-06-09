@@ -48,6 +48,7 @@ class SearchEngine:
 
         device_memory_capacity = cluster.get_device_memory_capacity()
         num_devices = cluster.get_num_devices()
+        # print(f"num_devices: {num_devices}")
         # 1. Model-level data parallelism.
         for num_replicas in _get_divisors(num_devices):
             if not cluster.is_partitionable(num_replicas):
@@ -177,7 +178,7 @@ class SearchEngine:
         return parallel_schedules
 
     def generate_plans(self, arch: str, cluster: "Cluster") -> List[ExecutionPlan]:
-
+        # print(f"devices: {cluster.get_num_devices()}")
         # Generate all possible parallel schedules.
         if arch == "encoder":
             parallel_schedules = self.generate_schedules(
@@ -225,14 +226,19 @@ class SearchEngine:
         model_config=[],
         ttft_slo = 10, 
         tpot_slo = 10, 
-        max_batch_size = 0) -> List[ExecutionPlan]:
+        max_batch_size = 0,
+        distserve = False) -> List[ExecutionPlan]:
         """Search for the best execution plan."""
         candidate_plans = self.generate_plans(self.arch, self.cluster)
         print(f"Generated {len(candidate_plans)} {self.arch} candidate plans.")
 
+        # print(self.simulator.num_total_nodes, self.simulator.num_total_devices)
+        # print(self.cluster)
+
         outputs: List[Tuple[ExecutionPlan, SimulatorOutput]] = []
         slo_targets = [ttft_slo, tpot_slo]
         for plan in tqdm(candidate_plans):
+        # for plan in candidate_plans:
             requests, output = self.simulator.simulate(
                 plan,
                 self.arch,
@@ -241,7 +247,8 @@ class SearchEngine:
                 req_percentiles,
                 token_percentiles,
                 slo_targets, 
-                max_batch_size)
+                max_batch_size,
+                distserve)
             if output is None:
                 # Invalid plan (e.g., when the model does not fit in memory).
                 continue
@@ -253,7 +260,7 @@ class SearchEngine:
         print("=" * 80)
 
         outputs = sorted(outputs, key=lambda x: x[1].total_time)
-        # Print either best plan or all plans based off flag
+        # # Print either best plan or all plans based off flag
         if return_all_plans:
             for i, (plan, output) in enumerate(outputs):
                 print(f"* Parallel schedule {i} for {self.arch}:")

@@ -44,9 +44,13 @@ def main(args: argparse.Namespace):
     model, model_config = get_model_ir(
         args.model, args.num_experts, args.topk, args.capacity_factor
     )
-
-    encoder_cluster = Cluster.from_gpu(args.gpu, args.num_nodes, 1)
-    cluster = Cluster.from_gpu(args.gpu, args.num_nodes, args.num_gpus_per_node)
+    # handle distserve
+    if args.distserve:
+        encoder_cluster = Cluster.from_gpu(args.gpu, 2, 1)
+        cluster = Cluster.from_gpu(args.gpu, 1, 2)
+    else:
+        encoder_cluster = Cluster.from_gpu(args.gpu, args.num_nodes, 1)
+        cluster = Cluster.from_gpu(args.gpu, args.num_nodes, args.num_gpus_per_node)
 
     if args.trace_file:
         trace = Trace.from_dynamic(args.trace_file)
@@ -74,6 +78,7 @@ def main(args: argparse.Namespace):
             args.ttft_slo, 
             args.tpot_slo, 
             args.max_batch_size,
+            args.distserve,
         )  # updated traces by adding encode time
         trace = Trace(trace)
     if model.num_decoder_blocks > 0:
@@ -89,6 +94,7 @@ def main(args: argparse.Namespace):
             args.ttft_slo, 
             args.tpot_slo, 
             args.max_batch_size,
+            args.distserve,
         )
 
 
@@ -201,6 +207,15 @@ if __name__ == "__main__":
         default=0,
         help="Define max batch size. This is also known as max number of sequences."
         )
+    # Define if the prefill and decode phases should be run on different GPUs
+    parser.add_argument(
+        "--distserve",
+        action="store_true",
+        default=True,
+        help="Enable 1P1D DistServe simulation (enabled by default)."
+    )
+
+
     args = parser.parse_args()
 
     main(args)
